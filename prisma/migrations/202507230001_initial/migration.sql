@@ -1,0 +1,20 @@
+-- Initial schema for People Analytics RH (generated baseline, PostgreSQL)
+CREATE TYPE "Role" AS ENUM ('ADMIN','HR','DIRECTOR','MANAGER');
+CREATE TYPE "VacancyStatus" AS ENUM ('PENDING','PUBLISHED','INTERVIEWS','OFFER','HIRED','CANCELLED');
+CREATE TYPE "RecruitmentSource" AS ENUM ('FACEBOOK','INDEED','OCC','LINKEDIN','REFERRAL','INTERNAL_BOARD','UNIVERSITY','OTHER');
+CREATE TYPE "SeparationType" AS ENUM ('VOLUNTARY','INVOLUNTARY');
+CREATE TYPE "SeparationReason" AS ENUM ('RESIGNATION','BETTER_OFFER','SALARY','LEADER_ISSUES','RELOCATION','NO_GROWTH','MISCONDUCT','ABSENTEEISM','LOW_PERFORMANCE','END_CONTRACT','OTHER');
+
+CREATE TABLE "Department" ("id" TEXT PRIMARY KEY, "name" TEXT NOT NULL UNIQUE, "agency" TEXT, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE "Leader" ("id" TEXT PRIMARY KEY, "name" TEXT NOT NULL, "departmentId" TEXT NOT NULL REFERENCES "Department"("id"));
+CREATE TABLE "User" ("id" TEXT PRIMARY KEY, "email" TEXT NOT NULL UNIQUE, "name" TEXT NOT NULL, "role" "Role" NOT NULL DEFAULT 'HR', "leaderId" TEXT REFERENCES "Leader"("id"), "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE "Position" ("id" TEXT PRIMARY KEY, "title" TEXT NOT NULL, "departmentId" TEXT NOT NULL REFERENCES "Department"("id"), "authorized" INTEGER NOT NULL DEFAULT 0, "occupied" INTEGER NOT NULL DEFAULT 0, "monthlyCost" DECIMAL(12,2) NOT NULL, UNIQUE("title","departmentId"));
+CREATE TABLE "Employee" ("id" TEXT PRIMARY KEY, "code" TEXT NOT NULL UNIQUE, "name" TEXT NOT NULL, "positionId" TEXT NOT NULL REFERENCES "Position"("id"), "departmentId" TEXT NOT NULL REFERENCES "Department"("id"), "leaderId" TEXT NOT NULL REFERENCES "Leader"("id"), "hiredAt" TIMESTAMP(3) NOT NULL, "active" BOOLEAN NOT NULL DEFAULT true);
+CREATE TABLE "Vacancy" ("id" TEXT PRIMARY KEY, "number" TEXT NOT NULL UNIQUE, "title" TEXT NOT NULL, "departmentId" TEXT NOT NULL REFERENCES "Department"("id"), "positionId" TEXT REFERENCES "Position"("id"), "leaderId" TEXT NOT NULL REFERENCES "Leader"("id"), "recruiterId" TEXT, "status" "VacancyStatus" NOT NULL DEFAULT 'PENDING', "source" "RecruitmentSource", "requestedAt" TIMESTAMP(3) NOT NULL, "authorizedAt" TIMESTAMP(3), "publishedAt" TIMESTAMP(3), "interviewsAt" TIMESTAMP(3), "hiredAt" TIMESTAMP(3), "startedAt" TIMESTAMP(3), "candidateCount" INTEGER NOT NULL DEFAULT 0, "interviewedCount" INTEGER NOT NULL DEFAULT 0, "hiredCount" INTEGER NOT NULL DEFAULT 0, "recruitmentCost" DECIMAL(12,2) NOT NULL DEFAULT 0, "notes" TEXT, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE "Separation" ("id" TEXT PRIMARY KEY, "employeeId" TEXT NOT NULL UNIQUE REFERENCES "Employee"("id"), "positionId" TEXT NOT NULL, "departmentId" TEXT NOT NULL, "leaderId" TEXT NOT NULL REFERENCES "Leader"("id"), "hiredAt" TIMESTAMP(3) NOT NULL, "separatedAt" TIMESTAMP(3) NOT NULL, "type" "SeparationType" NOT NULL, "reason" "SeparationReason" NOT NULL, "replacementCost" DECIMAL(12,2) NOT NULL DEFAULT 0, "notes" TEXT, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE "Insight" ("id" TEXT PRIMARY KEY, "title" TEXT NOT NULL, "message" TEXT NOT NULL, "recommendation" TEXT NOT NULL, "severity" TEXT NOT NULL, "entityType" TEXT NOT NULL, "entityId" TEXT, "period" TEXT NOT NULL, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "dismissedAt" TIMESTAMP(3));
+CREATE TABLE "Alert" ("id" TEXT PRIMARY KEY, "type" TEXT NOT NULL, "title" TEXT NOT NULL, "message" TEXT NOT NULL, "severity" TEXT NOT NULL, "status" TEXT NOT NULL DEFAULT 'OPEN', "entityType" TEXT NOT NULL, "entityId" TEXT, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "resolvedAt" TIMESTAMP(3));
+CREATE INDEX "Vacancy_status_publishedAt_idx" ON "Vacancy"("status","publishedAt");
+CREATE INDEX "Separation_departmentId_separatedAt_idx" ON "Separation"("departmentId","separatedAt");
+CREATE INDEX "Insight_severity_createdAt_idx" ON "Insight"("severity","createdAt");
+CREATE INDEX "Alert_status_severity_idx" ON "Alert"("status","severity");

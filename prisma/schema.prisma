@@ -1,0 +1,184 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  HR
+  DIRECTOR
+  MANAGER
+}
+enum VacancyStatus {
+  PENDING
+  PUBLISHED
+  INTERVIEWS
+  OFFER
+  HIRED
+  CANCELLED
+}
+enum RecruitmentSource {
+  FACEBOOK
+  INDEED
+  OCC
+  LINKEDIN
+  REFERRAL
+  INTERNAL_BOARD
+  UNIVERSITY
+  OTHER
+}
+enum SeparationType {
+  VOLUNTARY
+  INVOLUNTARY
+}
+enum SeparationReason {
+  RESIGNATION
+  BETTER_OFFER
+  SALARY
+  LEADER_ISSUES
+  RELOCATION
+  NO_GROWTH
+  MISCONDUCT
+  ABSENTEEISM
+  LOW_PERFORMANCE
+  END_CONTRACT
+  OTHER
+}
+
+model User {
+  id String @id @default(cuid())
+  email String @unique
+  name String
+  role Role @default(HR)
+  leaderId String?
+  leader Leader? @relation(fields:[leaderId],references:[id])
+  createdAt DateTime @default(now())
+}
+model Department {
+  id String @id @default(cuid())
+  name String @unique
+  agency String?
+  leaders Leader[]
+  positions Position[]
+  vacancies Vacancy[]
+  employees Employee[]
+  createdAt DateTime @default(now())
+  @@index([agency])
+}
+model Leader {
+  id String @id @default(cuid())
+  name String
+  departmentId String
+  department Department @relation(fields:[departmentId],references:[id])
+  users User[]
+  vacancies Vacancy[]
+  employees Employee[]
+  separations Separation[]
+  @@index([departmentId])
+}
+model Position {
+  id String @id @default(cuid())
+  title String
+  departmentId String
+  department Department @relation(fields:[departmentId],references:[id])
+  authorized Int @default(0)
+  occupied Int @default(0)
+  monthlyCost Decimal @db.Decimal(12,2)
+  vacancies Vacancy[]
+  employees Employee[]
+  @@unique([title,departmentId])
+  @@index([departmentId])
+}
+model Employee {
+  id String @id @default(cuid())
+  code String @unique
+  name String
+  positionId String
+  position Position @relation(fields:[positionId],references:[id])
+  departmentId String
+  department Department @relation(fields:[departmentId],references:[id])
+  leaderId String
+  leader Leader @relation(fields:[leaderId],references:[id])
+  hiredAt DateTime
+  active Boolean @default(true)
+  separation Separation?
+  @@index([departmentId,leaderId])
+  @@index([active,hiredAt])
+}
+model Vacancy {
+  id String @id @default(cuid())
+  number String @unique
+  title String
+  departmentId String
+  department Department @relation(fields:[departmentId],references:[id])
+  positionId String?
+  position Position? @relation(fields:[positionId],references:[id])
+  leaderId String
+  leader Leader @relation(fields:[leaderId],references:[id])
+  recruiterId String?
+  status VacancyStatus @default(PENDING)
+  source RecruitmentSource?
+  requestedAt DateTime
+  authorizedAt DateTime?
+  publishedAt DateTime?
+  interviewsAt DateTime?
+  hiredAt DateTime?
+  startedAt DateTime?
+  candidateCount Int @default(0)
+  interviewedCount Int @default(0)
+  hiredCount Int @default(0)
+  recruitmentCost Decimal @default(0) @db.Decimal(12,2)
+  notes String?
+  createdAt DateTime @default(now())
+  @@index([status,publishedAt])
+  @@index([departmentId,leaderId])
+}
+model Separation {
+  id String @id @default(cuid())
+  employeeId String @unique
+  employee Employee @relation(fields:[employeeId],references:[id])
+  positionId String
+  departmentId String
+  leaderId String
+  leader Leader @relation(fields:[leaderId],references:[id])
+  hiredAt DateTime
+  separatedAt DateTime
+  type SeparationType
+  reason SeparationReason
+  replacementCost Decimal @default(0) @db.Decimal(12,2)
+  notes String?
+  createdAt DateTime @default(now())
+  @@index([departmentId,separatedAt])
+  @@index([leaderId,separatedAt])
+  @@index([type,reason])
+}
+model Insight {
+  id String @id @default(cuid())
+  title String
+  message String
+  recommendation String
+  severity String
+  entityType String
+  entityId String?
+  period String
+  createdAt DateTime @default(now())
+  dismissedAt DateTime?
+  @@index([severity,createdAt])
+}
+model Alert {
+  id String @id @default(cuid())
+  type String
+  title String
+  message String
+  severity String
+  status String @default("OPEN")
+  entityType String
+  entityId String?
+  createdAt DateTime @default(now())
+  resolvedAt DateTime?
+  @@index([status,severity])
+}
